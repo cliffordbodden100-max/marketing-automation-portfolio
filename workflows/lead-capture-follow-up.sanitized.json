@@ -1,0 +1,176 @@
+{
+  "name": "Lead Capture and Automated Follow-Up — Sanitized Demo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "portfolio-lead-capture",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e3df0e87-1b32-4d51-a79f-76e609be8c31",
+      "name": "Lead Form Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-620, 0],
+      "webhookId": "SANITIZED-WEBHOOK-ID"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json.body ?? $json;\nconst clean = (value) => typeof value === 'string' ? value.trim() : '';\nconst name = clean(input.name);\nconst email = clean(input.email).toLowerCase();\nconst phone = clean(input.phone);\nconst serviceKey = clean(input.service).toLowerCase();\nconst message = clean(input.message);\n\nif (!name) throw new Error('Name is required');\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {\n  throw new Error('A valid email is required');\n}\n\nconst routes = {\n  'airport transfer': { priority: 'Urgent', owner: 'Operations', minutes: 10 },\n  'tour booking': { priority: 'High', owner: 'Sales — Tours', minutes: 15 },\n  'vacation rental': { priority: 'High', owner: 'Reservations', minutes: 15 },\n  'general inquiry': { priority: 'Normal', owner: 'Customer Care', minutes: 30 },\n};\nconst route = routes[serviceKey] ?? routes['general inquiry'];\nconst receivedAt = new Date();\nconst responseDueAt = new Date(receivedAt.getTime() + route.minutes * 60000);\n\nreturn [{ json: {\n  lead_id: `LEAD-${receivedAt.getTime()}`,\n  received_at: receivedAt.toISOString(),\n  name, email, phone,\n  service: serviceKey ? serviceKey.replace(/\\b\\w/g, c => c.toUpperCase()) : 'General Inquiry',\n  message,\n  priority: route.priority,\n  assigned_owner: route.owner,\n  response_target_minutes: route.minutes,\n  response_due_at: responseDueAt.toISOString(),\n  status: 'New'\n} }];"
+      },
+      "id": "92e55e7e-914a-4cb4-a136-f36b120fb4ae",
+      "name": "Validate and Route Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-380, 0]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_id": "={{ $json.lead_id }}",
+            "received_at": "={{ $json.received_at }}",
+            "name": "={{ $json.name }}",
+            "email": "={{ $json.email }}",
+            "phone": "={{ $json.phone }}",
+            "service": "={{ $json.service }}",
+            "priority": "={{ $json.priority }}",
+            "assigned_owner": "={{ $json.assigned_owner }}",
+            "response_target_minutes": "={{ $json.response_target_minutes }}",
+            "response_due_at": "={{ $json.response_due_at }}",
+            "status": "={{ $json.status }}",
+            "notes": ""
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "2e9944f3-5d56-413c-9662-9209913fe8f4",
+      "name": "Append to Google Sheets CRM",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [-120, -100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/contacts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "api-key",
+              "value": "={{ $env.BREVO_API_KEY }}"
+            },
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"email\": {{ JSON.stringify($json.email) }},\n  \"attributes\": {\n    \"FIRSTNAME\": {{ JSON.stringify($json.name) }},\n    \"SMS\": {{ JSON.stringify($json.phone) }},\n    \"SERVICE\": {{ JSON.stringify($json.service) }},\n    \"PRIORITY\": {{ JSON.stringify($json.priority) }}\n  },\n  \"listIds\": [YOUR_BREVO_LIST_ID],\n  \"updateEnabled\": true\n}",
+        "options": {}
+      },
+      "id": "1212f24f-f01d-49e1-92f9-a1310d71b0e9",
+      "name": "Create or Update Brevo Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-120, 120],
+      "notes": "For production, store the Brevo API key in an n8n credential rather than exporting it with a workflow. This demo reads an environment variable."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Your inquiry was received and routed.\",\n  \"leadId\": {{ JSON.stringify($(\"Validate and Route Lead\").item.json.lead_id) }},\n  \"responseTargetMinutes\": {{ $(\"Validate and Route Lead\").item.json.response_target_minutes }}\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "9d2d2bd4-36fd-47f8-b090-ea0fc90db0a3",
+      "name": "Return Confirmation",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [160, 0]
+    }
+  ],
+  "connections": {
+    "Lead Form Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate and Route Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate and Route Lead": {
+      "main": [
+        [
+          {
+            "node": "Append to Google Sheets CRM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create or Update Brevo Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Google Sheets CRM": {
+      "main": [
+        [
+          {
+            "node": "Return Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or Update Brevo Contact": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "SANITIZED-VERSION-ID",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    {
+      "name": "Portfolio Demo"
+    }
+  ]
+}
