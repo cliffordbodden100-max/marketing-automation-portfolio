@@ -1,0 +1,2 @@
+lead_id,received_at,name,email,phone,service,priority,assigned_owner,response_target_minutes,response_due_at,status,notes
+LEAD-EXAMPLE-001,2026-08-24T12:00:00.000Z,Ana Rivera,ana.rivera@example.com,+504 9999-0000,Tour Booking,High,Sales — Tours,15,2026-08-24T12:15:00.000Z,New,Fictional sample record
