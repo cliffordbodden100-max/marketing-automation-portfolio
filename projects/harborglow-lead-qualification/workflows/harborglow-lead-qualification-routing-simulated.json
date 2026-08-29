@@ -1,0 +1,166 @@
+{
+  "name": "HarborGlow Lead Qualification & Routing — SIMULATED",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "44c6d037-81da-44d4-8c4b-a650f0acc29d",
+      "name": "Every Minute — Local Polling"
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "operation": "search",
+        "limit": 10,
+        "filterGroupsUi": {
+          "filterGroupsValues": [
+            {
+              "filtersUi": {
+                "filterValues": [
+                  {
+                    "propertyName": "lead_qualification_status|enumeration",
+                    "value": "Pending Qualification"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "properties": [
+            "firstname",
+            "lastname",
+            "email",
+            "phone",
+            "zip",
+            "service_type",
+            "cleaning_frequency",
+            "home_square_footage",
+            "preferred_service_date",
+            "lead_qualification_status",
+            "lead_source_detail"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "fa762bc5-fd17-4533-80ad-c38d0de0b40d",
+      "name": "Find Pending HubSpot Leads"
+    },
+    {
+      "parameters": {
+        "jsCode": "const serviceAreaZips = new Set([\n  '33602', '33603', '33604', '33605',\n  '33606', '33607', '33609', '33611',\n  '33614', '33616', '33619', '33629'\n]);\n\nreturn $input.all().map((item) => {\n  const p = item.json.properties ?? item.json;\n\n  const contactId = String(item.json.id ?? p.hs_object_id ?? '');\n  const firstName = p.firstname || 'Lead';\n  const zip = String(p.zip ?? '').trim();\n  const serviceType = String(p.service_type ?? '').trim();\n  const frequency = String(p.cleaning_frequency ?? '').trim();\n  const squareFeet = Number(p.home_square_footage || 0);\n  const preferredDate = p.preferred_service_date || null;\n\n  let score = 0;\n\n  const breakdown = {\n    zip_fit: 0,\n    service_value: 0,\n    frequency_value: 0,\n    home_fit: 0,\n    urgency: 0,\n  };\n\n  // ZIP fit: maximum 25 points\n  const isInServiceArea = serviceAreaZips.has(zip);\n\n  if (isInServiceArea) {\n    breakdown.zip_fit = 25;\n  }\n\n  // Service value: maximum 20 points\n  const service = serviceType.toLowerCase();\n\n  if (service.includes('recurring')) {\n    breakdown.service_value = 20;\n  } else if (service.includes('deep') || service.includes('move')) {\n    breakdown.service_value = 15;\n  } else if (service.includes('standard')) {\n    breakdown.service_value = 10;\n  } else if (serviceType) {\n    breakdown.service_value = 5;\n  }\n\n  // Frequency/retention value: maximum 20 points\n  const cadence = frequency.toLowerCase();\n\n  if (cadence.includes('weekly') && !cadence.includes('two')) {\n    breakdown.frequency_value = 20;\n  } else if (\n    cadence.includes('two weeks') ||\n    cadence.includes('biweekly')\n  ) {\n    breakdown.frequency_value = 15;\n  } else if (cadence.includes('monthly')) {\n    breakdown.frequency_value = 10;\n  } else if (\n    cadence.includes('one-time') ||\n    cadence.includes('one time')\n  ) {\n    breakdown.frequency_value = 5;\n  } else if (frequency) {\n    breakdown.frequency_value = 5;\n  }\n\n  // Home/job fit: maximum 15 points\n  if (squareFeet >= 1000 && squareFeet <= 3500) {\n    breakdown.home_fit = 15;\n  } else if (squareFeet > 3500) {\n    breakdown.home_fit = 10;\n  } else if (squareFeet > 0) {\n    breakdown.home_fit = 8;\n  }\n\n  // Urgency: maximum 20 points\n  let daysUntilService = null;\n\n  if (preferredDate) {\n    const serviceDate = new Date(`${preferredDate}T00:00:00Z`);\n    const currentDate = new Date();\n\n    if (!Number.isNaN(serviceDate.getTime())) {\n      daysUntilService = Math.ceil(\n        (serviceDate.getTime() - currentDate.getTime()) / 86400000\n      );\n\n      if (daysUntilService < 0) {\n        breakdown.urgency = 0;\n      } else if (daysUntilService <= 7) {\n        breakdown.urgency = 20;\n      } else if (daysUntilService <= 14) {\n        breakdown.urgency = 15;\n      } else if (daysUntilService <= 30) {\n        breakdown.urgency = 10;\n      } else {\n        breakdown.urgency = 5;\n      }\n    }\n  }\n\n  score = Object.values(breakdown).reduce(\n    (total, points) => total + points,\n    0\n  );\n\n  const missingFields = [];\n\n  if (!zip) missingFields.push('ZIP code');\n  if (!serviceType) missingFields.push('service type');\n  if (!frequency) missingFields.push('cleaning frequency');\n  if (!preferredDate) missingFields.push('preferred service date');\n  if (!p.email && !p.phone) missingFields.push('contact method');\n\n  let qualificationStatus;\n  let disqualificationReason = '';\n  let nextBestAction;\n\n  if (missingFields.length > 0) {\n    qualificationStatus = 'Needs More Information';\n    nextBestAction = 'Request More Information';\n  } else if (!isInServiceArea) {\n    qualificationStatus = 'Unqualified';\n    disqualificationReason = 'Outside Service Area';\n    nextBestAction = 'Mark Unqualified';\n  } else if (score >= 85) {\n    qualificationStatus = 'Qualified';\n    nextBestAction = 'Call Immediately';\n  } else if (score >= 70) {\n    qualificationStatus = 'Qualified';\n    nextBestAction = 'Send Estimate';\n  } else if (score >= 50) {\n    qualificationStatus = 'Nurture';\n    nextBestAction = 'Begin Nurture Sequence';\n  } else {\n    qualificationStatus = 'Needs More Information';\n    nextBestAction = 'Human Review';\n  }\n\n  const qualificationSummary =\n    `SIMULATED rule-based qualification: ${firstName} scored ${score}/100. ` +\n    `ZIP ${zip || 'missing'}; service: ${serviceType || 'missing'}; ` +\n    `frequency: ${frequency || 'missing'}; home size: ` +\n    `${squareFeet || 'missing'} sq ft; status: ${qualificationStatus}. ` +\n    `Recommended action: ${nextBestAction}.`;\n\n  return {\n    json: {\n      ...item.json,\n      contact_id: contactId,\n      lead_score: score,\n      qualification_status: qualificationStatus,\n      disqualification_reason: disqualificationReason,\n      next_best_action: nextBestAction,\n      qualification_summary: qualificationSummary,\n      score_breakdown: breakdown,\n      days_until_service: daysUntilService,\n    },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "dba9c59b-f390-4f38-8e50-622186e64698",
+      "name": "Calculate Lead Score & Routing"
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "email": "={{ $json.properties.email }}",
+        "additionalFields": {
+          "customPropertiesUi": {
+            "customPropertiesValues": [
+              {
+                "property": "ai_lead_score",
+                "value": "={{ $json.lead_score }}"
+              },
+              {
+                "property": "ai_summary",
+                "value": "={{ $json.qualification_summary }}"
+              },
+              {
+                "property": "lead_qualification_status",
+                "value": "={{ $json.qualification_status }}"
+              },
+              {
+                "property": "disqualification_reason",
+                "value": "={{ $json.disqualification_reason }}"
+              },
+              {
+                "property": "next_best_action",
+                "value": "={{ $json.next_best_action }}"
+              }
+            ]
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "e28219c9-e582-49df-ad1f-c9cfc35224c7",
+      "name": "Write Qualification to HubSpot"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every Minute — Local Polling": {
+      "main": [
+        [
+          {
+            "node": "Find Pending HubSpot Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Pending HubSpot Leads": {
+      "main": [
+        [
+          {
+            "node": "Calculate Lead Score & Routing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Lead Score & Routing": {
+      "main": [
+        [
+          {
+            "node": "Write Qualification to HubSpot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": [],
+  "tags": []
+}
