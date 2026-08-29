@@ -8,6 +8,11 @@ A portfolio demonstration of a practical lead-capture, CRM-routing, and email fo
 
 > This repository uses fictional sample data. It does not claim live client results, and it contains no production credentials.
 
+## Portfolio projects
+
+- **Lead Capture & Automated Follow-Up** — the webhook, Google Sheets CRM, and Brevo follow-up project documented in this root README.
+- **[HarborGlow Lead Qualification & Routing — SIMULATED](projects/harborglow-lead-qualification/README.md)** — a HubSpot and n8n lead-scoring and routing system with explainable rules, CRM write-back, duplicate-processing prevention, and documented QA.
+
 ## Business problem
 
 - Online inquiries can arrive outside office hours.
