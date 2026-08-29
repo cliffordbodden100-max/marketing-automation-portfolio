@@ -4,14 +4,35 @@
 ![Data](https://img.shields.io/badge/data-SIMULATED-orange?style=flat-square)
 ![n8n](https://img.shields.io/badge/automation-n8n-EA4B71?style=flat-square)
 ![HubSpot](https://img.shields.io/badge/CRM-HubSpot-FF7A59?style=flat-square)
+[![Portfolio](https://img.shields.io/badge/Notion-Public_Portfolio-000000?style=flat-square)](https://carlbodden.notion.site/Carl-Bodden-Marketing-Automation-Portfolio-3c1c3b53d92c81c9a2ced456e1c62623)
 
 An explainable lead-qualification and CRM-routing demonstration for **HarborGlow Home Cleaning**, a fictional local-service company in Tampa, Florida.
 
-> **Portfolio disclosure:** Every company, contact, score, and test result in this project is fictional and **SIMULATED**. This version uses deterministic business rules—not machine learning or an LLM—so every score can be explained and audited.
+> **Portfolio disclosure:** Every company, contact, score, and test result in this project is fictional and **SIMULATED**. This version uses deterministic business rules—not machine learning or an LLM—so every decision can be explained and audited.
+
+## Recruiter quick view
+
+| Signal | Evidence |
+|---|---|
+| Role alignment | Marketing Automation, CRM Operations, RevOps Support |
+| Stack | HubSpot, n8n, JavaScript, Docker |
+| System built | Pending-contact search, 0–100 scoring, decision routing, and CRM write-back |
+| Quality proof | Positive-path tests, outside-area routing, past-date regression, and duplicate-prevention check |
+| Security proof | Sanitized inactive workflow with no credentials, pinned data, execution payloads, or instance identifiers |
+
+### Inspect the evidence
+
+[![Workflow](https://img.shields.io/badge/Open-Sanitized_Workflow-EA4B71?style=for-the-badge)](workflows/harborglow-lead-qualification-routing-simulated.json)
+[![Scoring](https://img.shields.io/badge/Read-Scoring_Model-FF7A59?style=for-the-badge)](docs/scoring-model.md)
+[![Tests](https://img.shields.io/badge/Review-Test_Evidence-0969DA?style=for-the-badge)](docs/test-results.md)
+
+![Successful end-to-end HarborGlow workflow execution in n8n](assets/n8n-workflow-success.png)
+
+*A successful end-to-end n8n execution: scheduled polling → HubSpot search → explainable scoring and routing → HubSpot write-back.*
 
 ## Business problem
 
-Local-service teams can lose revenue when new inquiries are reviewed inconsistently, sales-ready leads wait too long, or contacts outside the service area consume sales time.
+Local-service teams can lose opportunities when new inquiries are reviewed inconsistently, sales-ready leads wait too long, or contacts outside the service area consume sales time.
 
 This workflow standardizes the first qualification decision by:
 
@@ -122,6 +143,8 @@ The sanitized workflow imports **inactive** so it cannot begin polling before th
 
 ```text
 harborglow-lead-qualification/
+├── assets/
+│   └── n8n-workflow-success.png
 ├── docs/
 │   ├── scoring-model.md
 │   └── test-results.md
@@ -134,5 +157,4 @@ harborglow-lead-qualification/
 
 **Carl Bodden** is a bilingual English/Spanish Marketing Automation Specialist based in Roatán, Honduras. He builds practical CRM, lead-management, and follow-up systems using HubSpot, n8n, Google Workspace, Brevo, and related tools.
 
-[LinkedIn](https://www.linkedin.com/in/carl-bodden26) · [Notion portfolio](https://app.notion.com/p/3c1c3b53d92c81c9a2ced456e1c62623?pvs=204)
-
+[LinkedIn](https://www.linkedin.com/in/carl-bodden26) · [Public Notion portfolio](https://carlbodden.notion.site/Carl-Bodden-Marketing-Automation-Portfolio-3c1c3b53d92c81c9a2ced456e1c62623) · [Portfolio index](../../README.md)
